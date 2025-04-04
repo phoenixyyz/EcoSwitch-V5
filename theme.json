@@ -1,0 +1,43 @@
+{
+  "variant": "professional",
+  "primary": "hsl(217, 91%, 60%)",
+  "appearance": "system",
+  "radius": 0.375,
+  "themes": {
+    "blue": {
+      "name": "Ocean Blue",
+      "primaryColor": "hsl(217, 91%, 60%)",
+      "accentColor": "hsl(213, 94%, 68%)"
+    },
+    "green": {
+      "name": "Forest Green",
+      "primaryColor": "hsl(142, 76%, 36%)",
+      "accentColor": "hsl(142, 71%, 45%)"
+    },
+    "purple": {
+      "name": "Royal Purple",
+      "primaryColor": "hsl(263, 70%, 50%)",
+      "accentColor": "hsl(263, 90%, 51%)"
+    },
+    "orange": {
+      "name": "Amber Orange",
+      "primaryColor": "hsl(24, 100%, 50%)",
+      "accentColor": "hsl(32, 100%, 50%)"
+    },
+    "red": {
+      "name": "Ruby Red",
+      "primaryColor": "hsl(0, 73%, 41%)",
+      "accentColor": "hsl(0, 84%, 60%)"
+    },
+    "teal": {
+      "name": "Tranquil Teal",
+      "primaryColor": "hsl(171, 77%, 40%)",
+      "accentColor": "hsl(171, 77%, 64%)"
+    },
+    "indigo": {
+      "name": "Deep Indigo",
+      "primaryColor": "hsl(231, 48%, 48%)",
+      "accentColor": "hsl(231, 48%, 56%)"
+    }
+  }
+}
