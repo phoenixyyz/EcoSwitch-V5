@@ -82,11 +82,9 @@ export default function PromptInput() {
   
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
-    const hasValidOpenAI = apiKey && isKeyValid;
-    const hasValidDeepSeek = deepseekApiKey && isDeepseekKeyValid;
-    const hasValidProvider = hasValidOpenAI || hasValidDeepSeek || isOpenRouterAvailable;
     
-    if ((currentPrompt.trim() || previewImage) && hasValidProvider && !isLoading) {
+    // Always proceed with sending if we have input and we're not already loading
+    if ((currentPrompt.trim() || previewImage) && !isLoading) {
       sendPrompt();
       setPreviewImage(null);
     }
@@ -192,17 +190,13 @@ export default function PromptInput() {
                 <Button
                   type="submit"
                   disabled={
-                    // Disable if no valid provider (including OpenRouter) is available
-                    ((!apiKey || !isKeyValid) && (!deepseekApiKey || !isDeepseekKeyValid) && !isOpenRouterAvailable) || 
-                    // Disable if no input (text or image)
-                    (!currentPrompt.trim() && !previewImage) || 
-                    // Disable while loading
-                    isLoading
+                    // Only disable if no input (text or image) or while loading
+                    (!currentPrompt.trim() && !previewImage) || isLoading
                   }
                   className={`
                     px-4 py-2 rounded-lg flex items-center transition-all duration-300 shadow-sm
                     ${isLoading ? 'opacity-70 cursor-not-allowed' : 'hover:shadow-md hover:translate-y-[-1px] active:translate-y-[0px]'}
-                    ${((!apiKey || !isKeyValid) && (!deepseekApiKey || !isDeepseekKeyValid) && !isOpenRouterAvailable) ? 'bg-gray-400 text-white' : 'bg-gradient-to-r from-blue-600 to-blue-500 text-white'}
+                    bg-gradient-to-r from-blue-600 to-blue-500 text-white
                   `}
                 >
                   <span>{isLoading ? 'Sending...' : 'Send'}</span>
@@ -214,45 +208,7 @@ export default function PromptInput() {
           
           {/* Model parameters panel removed as requested */}
           
-          {((!apiKey || !isKeyValid) && (!deepseekApiKey || !isDeepseekKeyValid) && !isOpenRouterAvailable) && (
-            <div className="mt-3 animate-fadeIn">
-              <Alert className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200 shadow-sm">
-                <div className="flex items-start">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 flex-shrink-0 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                  </svg>
-                  <div>
-                    <AlertDescription className="font-medium text-sm">
-                      AI Connection Required
-                      <div className="font-normal mt-1 text-amber-700 dark:text-amber-300 text-xs">
-                        No valid AI providers available. Please connect at least one:
-                      </div>
-                      <div className="flex flex-col sm:flex-row sm:space-x-4 mt-2">
-                        {(!apiKey || !isKeyValid) && (
-                          <div className="flex items-center mt-1 sm:mt-0">
-                            <div className="h-2 w-2 rounded-full bg-red-500 mr-1.5"></div>
-                            <span className="text-blue-700 dark:text-blue-300 text-xs font-medium">OpenAI: Not connected</span>
-                          </div>
-                        )}
-                        {(!deepseekApiKey || !isDeepseekKeyValid) && (
-                          <div className="flex items-center mt-1 sm:mt-0">
-                            <div className="h-2 w-2 rounded-full bg-red-500 mr-1.5"></div>
-                            <span className="text-green-700 dark:text-green-300 text-xs font-medium">DeepSeek: Not connected</span>
-                          </div>
-                        )}
-                        {!isOpenRouterAvailable && (
-                          <div className="flex items-center mt-1 sm:mt-0">
-                            <div className="h-2 w-2 rounded-full bg-red-500 mr-1.5"></div>
-                            <span className="text-purple-700 dark:text-purple-300 text-xs font-medium">Free AI: Not available</span>
-                          </div>
-                        )}
-                      </div>
-                    </AlertDescription>
-                  </div>
-                </div>
-              </Alert>
-            </div>
-          )}
+          {/* Removed banner that was causing greyed out send button on mobile */}
         </form>
       </div>
     </div>
