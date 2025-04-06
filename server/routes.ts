@@ -1,7 +1,7 @@
 import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { createChatCompletion, validateApiKey } from "./api/openai";
+import { createChatCompletion, validateApiKey, verifyApiKey } from "./api/openai";
 import { validateDeepSeekApiKey, verifyDeepSeekApiKey, createDeepSeekChatCompletion } from "./api/deepseek";
 import { verifyOpenRouterConnection, createOpenRouterChatCompletion, verifyOpenRouterApiKey } from "./api/openrouter";
 import { insertMessageSchema, insertConversationSchema } from "@shared/schema";
@@ -19,9 +19,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       const { apiKey } = apiKeySchema.parse(req.body);
-      const isValid = validateApiKey(apiKey);
       
-      res.json({ valid: isValid });
+      // First do a basic format validation
+      const formatValid = validateApiKey(apiKey);
+      
+      if (!formatValid) {
+        return res.json({ valid: false });
+      }
+      
+      // Then do a real API verification
+      try {
+        const isValid = await verifyApiKey(apiKey);
+        res.json({ valid: isValid });
+      } catch (error) {
+        console.error("OpenAI API verification error:", error);
+        res.json({ valid: false });
+      }
     } catch (error) {
       res.status(400).json({ 
         message: "Invalid request", 
@@ -177,7 +190,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(400).json({ message: "DeepSeek Error: Invalid API key format. DeepSeek keys should start with 'sk-' and be at least 32 characters long." });
         }
         
-        const response = await createDeepSeekChatCompletion(messages, model, apiKey, {
+        // Default model to use if no valid model is provided
+        let modelToUse = 'deepseek-v3-base';
+        
+        // Only try to process the model if it's defined
+        if (model) {
+          // Clean the model name if it includes a provider prefix
+          const cleanModel = model.includes('/') ? model.split('/').pop() || modelToUse : model;
+          
+          // If model has deepseek-v3 prefix, use it
+          if (cleanModel.includes('deepseek-v3-')) {
+            modelToUse = cleanModel;
+          }
+        }
+        
+        console.log(`Using DeepSeek API with model: ${modelToUse} (requested: ${model})`);
+        
+        const response = await createDeepSeekChatCompletion(messages, modelToUse, apiKey, {
           temperature,
           max_tokens,
           presence_penalty,
@@ -222,8 +251,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
             useEnvironmentKey = true;
           }
           
-          // Force DeepSeek v3 as the only model for OpenRouter, regardless of what was sent
-          const modelToUse = 'deepseek/deepseek-v3-base:free';
+          // Default model for OpenRouter
+          let modelToUse = 'meta-llama/llama-3-8b-instruct';
+          
+          // Only process if model is defined
+          if (model) {
+            // For models that include a provider already (provider/model format)
+            if (model.includes('/')) {
+              modelToUse = model;
+              console.log(`Using user-selected OpenRouter model: ${modelToUse}`);
+            } 
+            // For legacy DeepSeek models that might still be in the system
+            else if (model.includes('deepseek-v3-')) {
+              modelToUse = `deepseek/${model}`;
+              // Add free tag if missing
+              if (!modelToUse.includes(':free')) {
+                modelToUse += ':free';
+              }
+              console.log(`Converting legacy DeepSeek model to: ${modelToUse}`);
+            }
+            // Otherwise, use the default model
+            else {
+              console.log(`Using default model: ${modelToUse} instead of requested model: ${model}`);
+            }
+          }
           
           // Log the model being used for OpenRouter
           console.log(`Using OpenRouter with model: ${modelToUse} (requested: ${model})`);
@@ -243,6 +294,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
             apiKey: apiKey && apiKey.trim() !== '' ? apiKey : undefined
           });
           
+          // Log the full response structure for debugging
+          console.log('OpenRouter response structure:', {
+            id: response.id,
+            object: response.object,
+            model: response.model,
+            choices: response.choices ? response.choices.length : 0
+          });
+          
+          if (response.choices && response.choices.length > 0) {
+            console.log('First choice:', {
+              finish_reason: response.choices[0].finish_reason,
+              index: response.choices[0].index,
+              message: response.choices[0].message ? {
+                role: response.choices[0].message.role,
+                contentType: typeof response.choices[0].message.content,
+                contentLength: response.choices[0].message.content ? 
+                  (typeof response.choices[0].message.content === 'string' ? 
+                    response.choices[0].message.content.length : 'non-string') : 'undefined'
+              } : 'undefined'
+            });
+          }
+          
           // Get the response content from OpenRouter
           let responseContent = '';
           
@@ -250,24 +323,101 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // Extract the raw content from the response
             const rawContent = response.choices[0].message.content;
             
-            if (typeof rawContent === 'string') {
-              // Only remove repeating patterns, preserve all character sets
-              responseContent = rawContent
-                .replace(/(.{30,}?)\1{3,}/g, '$1') // Only remove very long repeating patterns that repeat 3+ times
-                .trim();
+            // Log detailed info about content
+            console.log('Raw content type:', typeof rawContent);
+            
+            const isEmpty = rawContent === null || rawContent === undefined || 
+                           (typeof rawContent === 'string' && rawContent.trim() === '');
+            
+            // Check if we got an empty response from DeepSeek's free model
+            if (isEmpty && modelToUse.includes('deepseek') && modelToUse.includes(':free')) {
+              console.log('Empty response from DeepSeek free model. Adding diagnostic information.');
               
-              // Log the content processing
-              console.log(`Original content length: ${rawContent.length}, processed length: ${responseContent.length}`);
+              // Add more helpful information for empty DeepSeek responses
+              responseContent = "I apologize, but the DeepSeek free model couldn't generate a response at this time. " +
+                              "This is a common limitation with the free tier which sometimes occurs due to rate limits " +
+                              "or content filtering. You could try:\n\n" +
+                              "1. Simplifying your prompt\n" + 
+                              "2. Waiting a minute before trying again\n" +
+                              "3. Switching to Llama 3 or GPT-3.5 in the settings";
+            } else if (rawContent === null) {
+              console.log('Content is null');
+              responseContent = "I apologize, but I couldn't generate a response. Please try again or use a different model.";
+            } else if (rawContent === undefined) {
+              console.log('Content is undefined');
+              responseContent = "I apologize, but I couldn't generate a response. Please try again or use a different model.";
+            } else if (rawContent === '') {
+              console.log('Content is empty string');
+              responseContent = "I apologize, but I received an empty response. Please try again or use a different model.";
+            } else if (typeof rawContent === 'string') {
+              // Check for nonsensical repetitive "Hello" patterns common with DeepSeek free model
+              let trimmedContent = rawContent.trim();
               
-              // If we ended up with empty content after processing, use the original
-              if (!responseContent && rawContent) {
-                console.log("Warning: Content processing resulted in empty string, using original content");
-                responseContent = rawContent.trim();
+              // Check for repeating patterns
+              const isRepetitive = (text: string): boolean => {
+                if (text.length < 20) return false; // Very short responses aren't considered repetitive
+                
+                // Check for repeating "Hello" or similar patterns
+                const helloPattern = /(?:Hello|Hi|Hey){5,}/i;
+                if (helloPattern.test(text.replace(/\s+/g, ''))) {
+                  console.log("Detected repetitive greeting pattern in DeepSeek response");
+                  return true;
+                }
+                
+                // Check for basic repetitive characters
+                const repetitiveChars = /(.)\1{10,}/;
+                if (repetitiveChars.test(text.replace(/\s+/g, ''))) {
+                  console.log("Detected repetitive character pattern in response");
+                  return true;
+                }
+                
+                // Check if the response contains "What's one plus one?" which is a DeepSeek hallucination pattern
+                if (text.includes("What's one plus one?") || text.includes("What is one plus one?")) {
+                  console.log("Detected DeepSeek hallucination pattern ('What's one plus one?')");
+                  return true;
+                }
+                
+                // Check for any character or word repeated excessively
+                const segments = text.split(/\s+/);
+                if (segments.length >= 10) {
+                  const uniqueSegments = new Set(segments);
+                  if (uniqueSegments.size < segments.length * 0.2) {
+                    console.log("Detected low-entropy repetitive text pattern");
+                    return true;
+                  }
+                }
+                
+                return false;
+              };
+              
+              if (modelToUse.includes('deepseek') && modelToUse.includes(':free') && isRepetitive(trimmedContent)) {
+                console.log("Replacing nonsensical repetitive response from DeepSeek free model");
+                responseContent = "I apologize, but the DeepSeek free model generated a repetitive, nonsensical response. " +
+                                "This is a common limitation with the free tier. You could try:\n\n" +
+                                "1. Simplifying your prompt\n" + 
+                                "2. Waiting a minute before trying again\n" +
+                                "3. Switching to Llama 3 or GPT-3.5 in the settings";
+              } else {
+                // Use the raw content directly
+                responseContent = trimmedContent;
+                
+                // Log the content length
+                console.log(`Using original content with length: ${responseContent.length}`);
+                if (responseContent.length === 0) {
+                  responseContent = "I apologize, but I received an empty message. Please try again or use a different model.";
+                }
               }
             } else {
-              console.log("Warning: OpenRouter response content is not a string", typeof rawContent);
-              responseContent = JSON.stringify(rawContent);
+              console.log("Warning: OpenRouter response content is not a string:", typeof rawContent);
+              try {
+                responseContent = JSON.stringify(rawContent);
+              } catch (e) {
+                responseContent = "I apologize, but I received a response in an unexpected format. Please try again.";
+              }
             }
+          } else {
+            console.log('No choices or message in response');
+            responseContent = "I apologize, but I couldn't generate a proper response. Please try again or adjust your settings.";
           }
           
           // Create a standardized response

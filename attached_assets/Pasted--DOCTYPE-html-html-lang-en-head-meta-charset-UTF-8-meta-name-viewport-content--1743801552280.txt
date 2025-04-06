@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>What is EcoSwitch AI?</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background-color: #0f1117;
+      color: #e0e0e0;
+      padding: 2rem;
+      line-height: 1.6;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: #1a1d24;
+      padding: 2rem;
+      border-radius: 12px;
+      box-shadow: 0 0 20px rgba(0,0,0,0.4);
+    }
+
+    h1, h2 {
+      color: #4cc9f0;
+    }
+
+    h1 {
+      margin-top: 0;
+      font-size: 2rem;
+    }
+
+    h2 {
+      font-size: 1.2rem;
+      margin-top: 2rem;
+    }
+
+    .table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1rem 0;
+      background-color: #121418;
+    }
+
+    .table th,
+    .table td {
+      border: 1px solid #333;
+      padding: 0.75rem;
+      text-align: left;
+    }
+
+    .table th {
+      background-color: #2b2f3a;
+      color: #ffffff;
+    }
+
+    .note {
+      font-size: 0.95rem;
+      color: #aaaaaa;
+      margin-top: 1rem;
+    }
+
+    .highlight {
+      color: #90f7ec;
+      font-weight: bold;
+    }
+
+    .button-back {
+      display: inline-block;
+      margin-top: 2rem;
+      padding: 0.75rem 1.5rem;
+      background-color: #4cc9f0;
+      color: #0f1117;
+      text-decoration: none;
+      border-radius: 6px;
+      transition: background 0.3s ease;
+    }
+
+    .button-back:hover {
+      background-color: #3fb8e2;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>What is EcoSwitch AI?</h1>
+    <p><span class="highlight">EcoSwitch AI</span> is a smart, cost-saving AI assistant that helps you use powerful AI tools without overpaying. Instead of locking you into one subscription, it lets you connect with multiple AI providers—like OpenAI, DeepSeek, or even free options.</p>
+
+    <h2>What’s an API Key?</h2>
+    <p>An <strong>API key</strong> is like your personal access pass to advanced AI tools like ChatGPT. It tells the AI service, “This person is allowed to use this.”</p>
+    <p>By using your own key, you:</p>
+    <ul>
+      <li>Get full control of your usage</li>
+      <li>Only pay for what you use</li>
+      <li>Keep your chats private to you</li>
+    </ul>
+    <p>If you don’t have a key, EcoSwitch AI also includes a free fallback model so you can still chat without one.</p>
+
+    <h2>Why Not Just Use ChatGPT Premium?</h2>
+    <table class="table">
+      <tr>
+        <th>Feature</th>
+        <th>OpenAI API (Pay-as-you-go)</th>
+        <th>ChatGPT Premium</th>
+      </tr>
+      <tr>
+        <td>50 AI-generated images</td>
+        <td>~$2.00</td>
+        <td>$20.00/month</td>
+      </tr>
+      <tr>
+        <td>Small text tasks</td>
+        <td>~$0.01–0.10</td>
+        <td>Included</td>
+      </tr>
+      <tr>
+        <td>Cost when unused</td>
+        <td>$0.00</td>
+        <td>$20/month</td>
+      </tr>
+      <tr>
+        <td>Flexibility</td>
+        <td>High (choose models)</td>
+        <td>GPT-4 only</td>
+      </tr>
+    </table>
+
+    <h2>How It Works:</h2>
+    <ol>
+      <li>Paste your OpenAI or DeepSeek API key (or skip to use free mode)</li>
+      <li>EcoSwitch AI routes your prompt to the smartest and cheapest AI available</li>
+      <li>You only pay when your key is used—and only for what you need</li>
+    </ol>
+
+    <p class="note">With EcoSwitch AI, you get smart results, lower costs, and total control.</p>
+
+    <a href="#" onclick="window.history.back()" class="button-back">Back to App</a>
+  </div>
+</body>
+</html>

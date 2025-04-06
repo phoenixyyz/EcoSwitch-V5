@@ -54,7 +54,7 @@ const defaultSettings: SettingsType = {
     maxTokens: 1000,
     presencePenalty: 0,
     frequencyPenalty: 0,
-    systemPrompt: "Respond to the user's questions concisely and helpfully."
+    systemPrompt: ""
   }
 };
 
@@ -248,10 +248,10 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
       
       // Set OpenRouter as the active provider when key is valid
       if (data.valid) {
-        // Always use the specific DeepSeek v3 model when switching to OpenRouter
+        // Use Claude 3 Haiku as default model for OpenRouter
         updateSettings({ 
           apiProvider: "openrouter",
-          model: "deepseek/deepseek-v3-base:free" // Default to DeepSeek v3 for OpenRouter
+          model: "anthropic/claude-3-haiku-20240307" // Default to Claude 3 Haiku for OpenRouter
         });
       }
       
@@ -274,10 +274,10 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
       if (data.connected) {
         setIsOpenRouterAvailable(true);
         
-        // Always set the model to DeepSeek v3 when using OpenRouter
+        // Always set the model to Claude 3 Haiku when using OpenRouter
         if (settings.apiProvider === "openrouter") {
           updateSettings({
-            model: "deepseek/deepseek-v3-base:free"
+            model: "anthropic/claude-3-haiku-20240307"
           });
         }
         
@@ -420,7 +420,9 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
       const deepSeekModels = ["deepseek-chat", "deepseek-coder", "deepseek-llm-67b-chat"];
       // OpenRouter models with their proper model IDs
       const openRouterModels = [
-        'deepseek/deepseek-v3-base:free' // We're simplifying to just the Assistant model
+        'meta-llama/llama-3-8b-instruct',    // Llama 3 8B - widely supported
+        'openai/gpt-3.5-turbo',              // OpenAI GPT-3.5 - reliable fallback
+        'deepseek/deepseek-v3-base:free'     // DeepSeek v3 (Free) model
       ];
 
       // Model detection based on format
@@ -443,8 +445,10 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
           throw new Error("OpenRouter Error: No valid OpenRouter API key available. Please provide a valid OpenRouter API key or try another API provider.");
         }
         
-        // Always use DeepSeek v3 as the model for OpenRouter
-        modelToUse = "deepseek/deepseek-v3-base:free";
+        // Use Meta Llama 3 as default model for OpenRouter as it's reliable and works with our API key
+        if (!openRouterModels.includes(modelToUse)) {
+          modelToUse = "meta-llama/llama-3-8b-instruct";
+        }
       }
       // Handle OpenAI models
       else if (providerToUse === "openai") {
@@ -453,7 +457,7 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
           // If OpenRouter is available or has a valid key, use it as fallback
           if (isOpenRouterAvailable || isOpenRouterKeyValid) {
             providerToUse = "openrouter";
-            modelToUse = "deepseek/deepseek-v3-base:free";
+            modelToUse = "meta-llama/llama-3-8b-instruct";
           } else {
             throw new Error("OpenAI Error: Valid OpenAI API key required for this model. Please enter a valid OpenAI API key or use OpenRouter AI instead.");
           }
@@ -466,7 +470,7 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
           // If OpenRouter is available or has a valid key, use it as fallback
           if (isOpenRouterAvailable || isOpenRouterKeyValid) {
             providerToUse = "openrouter";
-            modelToUse = "deepseek/deepseek-v3-base:free";
+            modelToUse = "meta-llama/llama-3-8b-instruct";
           } else {
             throw new Error("DeepSeek Error: Valid DeepSeek API key required for this model. Please enter a valid DeepSeek API key or use OpenRouter AI instead.");
           }
@@ -511,7 +515,8 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
       const assistantMessage: MessageType = {
         role: "assistant",
         content: data.choices[0].message.content,
-        provider: providerToUse  // Use the actual provider that was used for the request
+        provider: providerToUse,  // Use the actual provider that was used for the request
+        model: modelToUse  // Store the model name that was used
       };
       
       // Update messages with assistant's response

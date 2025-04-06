@@ -70,7 +70,7 @@ export default function ConversationContainer({
                 </svg>
               </div>
               
-              <div className="flex flex-col max-w-xl">
+              <div className="flex flex-col max-w-[85%] md:max-w-xl">
                 <div className="bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 p-4 rounded-lg rounded-tl-none shadow-sm">
                   <div className="flex items-center">
                     <div className="flex space-x-1">
@@ -102,12 +102,66 @@ function MessageItem({ message }: MessageItemProps) {
   const isUser = message.role === "user";
   const { settings } = useChat();
   
+  // Helper function to get the model name from the message or settings
+  const getModelName = (message: MessageType) => {
+    if (isUser) return null;
+    
+    // Extract model name from full model path if available
+    let modelName = message.model || settings.model || "Assistant";
+    
+    try {
+      // Format model name to be more readable
+      if (modelName.includes('/')) {
+        // For OpenRouter models like "meta-llama/llama-3-8b-instruct"
+        const parts = modelName.split('/');
+        if (parts.length > 1) {
+          // Get just the model name part without vendor prefix
+          const modelPart = parts[1];
+          
+          // Format model names to be more human-readable
+          if (modelPart.includes("llama-3")) {
+            return "Llama 3";
+          } else if (modelPart.includes("gpt-3.5")) {
+            return "GPT-3.5";
+          } else if (modelPart.includes("deepseek")) {
+            return "DeepSeek";
+          } else {
+            // Use capitalized last part of the model name
+            return modelPart.split('-').map(word => 
+              word.charAt(0).toUpperCase() + word.slice(1)
+            ).join(' ');
+          }
+        }
+      } else if (typeof modelName === 'string') {
+        if (modelName.startsWith("gpt-4")) {
+          return "GPT-4";
+        } else if (modelName.startsWith("gpt-3.5")) {
+          return "GPT-3.5";
+        } else if (modelName.includes("deepseek")) {
+          return "DeepSeek";
+        }
+        
+        // For other models, clean up the format
+        return modelName.split('-').map(word => 
+          word.charAt(0).toUpperCase() + word.slice(1)
+        ).join(' ');
+      }
+      
+      // Default fallback
+      return "Assistant";
+    } catch (error) {
+      console.error("Error formatting model name:", error, "Model:", modelName);
+      return "Assistant";
+    }
+  };
+
   // Helper function to get API provider badge
   const getApiProviderBadge = () => {
     if (isUser) return null;
     
     let badgeText = "";
     let badgeColor = "";
+    let activityUrl = "";
     
     // Use the message's provider if available, otherwise fall back to the current settings
     const provider = message.provider || settings.apiProvider;
@@ -116,23 +170,32 @@ function MessageItem({ message }: MessageItemProps) {
       case "openai":
         badgeText = "OpenAI";
         badgeColor = "bg-blue-100 text-blue-800 dark:bg-blue-800 dark:text-blue-100";
+        activityUrl = "https://platform.openai.com/usage";
         break;
       case "deepseek":
         badgeText = "DeepSeek";
         badgeColor = "bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100";
+        activityUrl = "https://console.deepseek.com/usage";
         break;
       case "openrouter":
         badgeText = "OpenRouter";
         badgeColor = "bg-purple-100 text-purple-800 dark:bg-purple-800 dark:text-purple-100";
+        activityUrl = "https://openrouter.ai/activity";
         break;
       default:
         return null;
     }
     
     return (
-      <span className={`text-xs px-2 py-0.5 rounded ${badgeColor} ml-2 font-medium`}>
+      <a 
+        href={activityUrl} 
+        target="_blank" 
+        rel="noopener noreferrer" 
+        className={`text-xs px-2 py-0.5 rounded ${badgeColor} ml-2 font-medium hover:opacity-90 transition-opacity`}
+        title={`View ${badgeText} Activity`}
+      >
         {badgeText}
-      </span>
+      </a>
     );
   };
   
@@ -507,7 +570,7 @@ function MessageItem({ message }: MessageItemProps) {
         </div>
       )}
       
-      <div className="flex flex-col max-w-xl">
+      <div className="flex flex-col max-w-[85%] md:max-w-xl">
         {/* Message bubble */}
         <div className={`
           ${isUser 
@@ -518,7 +581,7 @@ function MessageItem({ message }: MessageItemProps) {
           {!isUser && (
             <div className="flex justify-between items-start mb-1">
               <div className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400 font-semibold">
-                Assistant {getApiProviderBadge()}
+                {getModelName(message)} {getApiProviderBadge()}
               </div>
             </div>
           )}

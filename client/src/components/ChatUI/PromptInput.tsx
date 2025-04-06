@@ -43,11 +43,11 @@ export default function PromptInput() {
     const file = e.target.files?.[0];
     if (!file) return;
     
-    // Check file size (limit to 4MB)
-    if (file.size > 4 * 1024 * 1024) {
+    // Check file size (limit to 2MB to avoid issues when converted to base64)
+    if (file.size > 2 * 1024 * 1024) {
       toast({
         title: "File too large",
-        description: "Maximum file size is 4MB",
+        description: "Maximum file size is 2MB",
         variant: "destructive",
       });
       return;

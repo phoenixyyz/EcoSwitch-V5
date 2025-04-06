@@ -70,20 +70,8 @@ export async function sendChatRequest(
     // Log which provider and model we're using
     console.log(`Sending request to ${provider} using model: ${model}`);
     
-    // If we have a system prompt and it's not already in the messages, add it
+    // System prompt is now disabled - directly use the messages as-is
     let processedMessages = [...messages];
-    if (modelParameters?.systemPrompt) {
-      // Check if there's already a system message at the beginning
-      const hasSystemMessage = messages.length > 0 && messages[0].role === 'system';
-      
-      // If not, prepend a system message
-      if (!hasSystemMessage) {
-        processedMessages = [
-          { role: 'system', content: modelParameters.systemPrompt },
-          ...messages
-        ];
-      }
-    }
     
     const response = await fetch("/api/chat", {
       method: "POST",

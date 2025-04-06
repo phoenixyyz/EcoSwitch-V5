@@ -21,12 +21,14 @@ const DEFAULT_HEADERS = {
   'OpenRouter-Data-Policy': 'allow'
 };
 
-// Models available through OpenRouter - we're only using Assistant model to simplify options
+// OpenRouter models - simplified to use only models that work with our key
 export const openRouterModels = [
-  'deepseek/deepseek-v3-base:free',      // Assistant (Default, Free)
+  'meta-llama/llama-3-8b-instruct',   // Llama 3 8B - widely supported
+  'openai/gpt-3.5-turbo',            // OpenAI GPT-3.5 - reliable fallback
+  'deepseek/deepseek-v3-base:free',  // DeepSeek v3 Base (free)
 ];
 
-// Function to determine if we have a valid free tier connection
+// Function to determine if we have a valid connection to OpenRouter
 export async function verifyOpenRouterConnection(): Promise<boolean> {
   try {
     // Check if we have an environment API key
@@ -68,6 +70,14 @@ export async function verifyOpenRouterApiKey(apiKey: string): Promise<boolean> {
       return false;
     }
     
+    // Basic format validation first
+    // The format should start with sk-or- but can have various formats
+    const openRouterKeyPattern = /^sk-or-/;
+    if (!openRouterKeyPattern.test(apiKey)) {
+      console.log('OpenRouter API key invalid format:', apiKey);
+      return false;
+    }
+    
     const headers = {
       'Content-Type': 'application/json',
       'HTTP-Referer': 'https://ecoswitch.replit.app',
@@ -76,20 +86,22 @@ export async function verifyOpenRouterApiKey(apiKey: string): Promise<boolean> {
       'OpenRouter-Data-Policy': 'allow'
     };
     
+    // Try to make a real API call to verify the key
     const response = await axios.get(`${OPENROUTER_API_URL}/models`, {
       headers: headers,
     });
     
+    console.log('OpenRouter API key validation successful');
     return response.status === 200;
   } catch (error: any) {
-    console.error('Error validating OpenRouter API key:', error);
+    console.error('Error validating OpenRouter API key:', error.message);
     return false;
   }
 }
 
 // Function to create a chat completion with OpenRouter
 export async function createOpenRouterChatCompletion(
-  model: string = 'deepseek/deepseek-v3-base:free',
+  model: string = 'meta-llama/llama-3-8b-instruct',
   messages: MessageType[],
   options: {
     temperature?: number;
@@ -97,38 +109,52 @@ export async function createOpenRouterChatCompletion(
     presencePenalty?: number;
     frequencyPenalty?: number;
     systemPrompt?: string;
-    apiKey?: string; // Add custom API key parameter
+    apiKey?: string; // For custom API key
   } = {}
 ) {
   try {
-    // Format messages for OpenRouter
-    const formattedMessages = messages.map(message => ({
-      role: message.role,
-      content: message.content,
-    }));
+    // Format messages for OpenRouter API
+    let formattedMessages = [];
     
-    // Add system message if provided
-    if (options.systemPrompt) {
-      formattedMessages.unshift({
-        role: 'system',
-        content: options.systemPrompt,
-      });
+    // Add system prompt specifically for DeepSeek free model to help improve response quality
+    if (model.includes('deepseek') && model.includes(':free')) {
+      const systemPrompt = options.systemPrompt || 
+        "You are DeepSeek, a helpful AI assistant. Provide clear, concise, and accurate information. " +
+        "Always answer the question directly and stay focused on the topic. " + 
+        "Avoid generating repetitive text like 'Hello' multiple times. " +
+        "If you are uncertain about something, acknowledge it rather than making up information. " +
+        "Response should be coherent and meaningful to the user's query.";
+      
+      // Add system prompt if not already present
+      const hasSystemPrompt = messages.some(msg => msg.role === 'system');
+      if (!hasSystemPrompt) {
+        formattedMessages.push({
+          role: 'system',
+          content: systemPrompt
+        });
+      }
     }
     
-    // Build request payload with additional settings to prevent inconsistent behavior
-    const payload = {
+    // Add the user's messages
+    formattedMessages = [
+      ...formattedMessages,
+      ...messages.map(message => ({
+        role: message.role,
+        content: message.content,
+      }))
+    ];
+    
+    // Build request payload according to DeepSeek and OpenRouter documentation
+    const payload: any = {
       model: model,
       messages: formattedMessages,
-      temperature: options.temperature ?? 0.5, // Lower temperature for more deterministic outputs
-      max_tokens: options.maxTokens ?? 800,    // Reduced max tokens to avoid long responses
-      presence_penalty: options.presencePenalty ?? 0.1, // Small presence penalty to discourage repetition
-      frequency_penalty: options.frequencyPenalty ?? 0.2, // Increased frequency penalty to reduce repetition
-      top_p: 0.9,     // Slightly reduced top_p 
-      top_k: 40,      // Add top_k parameter to limit token selection
-      seed: 42,       // Keep the seed value to ensure consistent output
-      stop: ["\n\n\n"], // Add stop sequences to prevent excessive newlines
-      stream: false,  // Explicitly set streaming to false
-      response_format: { type: "text" } // Explicitly request text format
+      temperature: options.temperature ?? (model.includes('deepseek') ? 0.5 : 0.7), // Lower temperature for DeepSeek to reduce randomness
+      max_tokens: options.maxTokens ?? (model.includes('deepseek') ? 1000 : 2048),  // Limit token length for DeepSeek
+      presence_penalty: options.presencePenalty ?? (model.includes('deepseek') ? 0.2 : 0), // Increase presence penalty for DeepSeek
+      frequency_penalty: options.frequencyPenalty ?? (model.includes('deepseek') ? 0.5 : 0), // Increase frequency penalty for DeepSeek
+      top_p: model.includes('deepseek') ? 0.8 : 0.95, // Lower top_p for DeepSeek to make outputs more focused
+      stream: false,   // We don't want streaming
+      response_format: { type: "text" } // Explicitly request text format, not JSON
     };
     
     // Log the model being used
@@ -144,6 +170,15 @@ export async function createOpenRouterChatCompletion(
       headers['Authorization'] = `Bearer ${options.apiKey}`;
     }
     
+    // Log the full payload for debugging
+    console.log('OpenRouter request payload:', {
+      model: payload.model,
+      messageCount: payload.messages.length,
+      temperature: payload.temperature,
+      max_tokens: payload.max_tokens,
+      response_format: payload.response_format
+    });
+    
     // Send request to OpenRouter API
     const response = await axios.post(
       `${OPENROUTER_API_URL}/chat/completions`, 
@@ -151,15 +186,44 @@ export async function createOpenRouterChatCompletion(
       { headers }
     );
     
+    // Log the full response structure for debugging
+    console.log('OpenRouter API raw response structure:', {
+      status: response.status,
+      headers: response.headers['content-type'],
+      dataType: typeof response.data,
+      hasChoices: response.data.choices ? true : false,
+      choicesCount: response.data.choices ? response.data.choices.length : 0,
+      model: response.data.model
+    });
+    
+    if (response.data.choices && response.data.choices.length > 0) {
+      const firstChoice = response.data.choices[0];
+      console.log('First choice details:', {
+        finish_reason: firstChoice.finish_reason,
+        message: firstChoice.message ? {
+          role: firstChoice.message.role,
+          contentType: typeof firstChoice.message.content,
+          contentPreview: typeof firstChoice.message.content === 'string' ? 
+            (firstChoice.message.content.substring(0, 30) + '...') : 'non-string content'
+        } : 'undefined'
+      });
+    }
+    
     // Log successful response
     console.log(`OpenRouter API response successful with model: ${model}`);
-    
     
     return response.data;
   } catch (error: any) {
     console.error('Error in OpenRouter API call:', error);
-    // Log the full error for debugging
-    console.error('OpenRouter API error details:', JSON.stringify(error.response?.data || error.message || error));
+    
+    // Log detailed error information for debugging
+    if (error.response) {
+      console.error('OpenRouter API error details:', {
+        status: error.response.status,
+        statusText: error.response.statusText,
+        data: error.response.data
+      });
+    }
     
     let errorMessage = 'Failed to connect to OpenRouter API.';
     
@@ -170,6 +234,8 @@ export async function createOpenRouterChatCompletion(
       errorMessage = 'Model not found. Please select a different model in settings.';
     } else if (error.response?.status === 429) {
       errorMessage = 'Rate limit exceeded. Please try again later.';
+    } else if (error.response?.status === 401) {
+      errorMessage = 'Invalid API key. Please check your OpenRouter API key.';
     }
     
     throw new Error(errorMessage);

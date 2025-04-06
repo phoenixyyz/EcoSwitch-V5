@@ -12,6 +12,7 @@ export type MessageType = {
   content: MessageContent | MessageContent[];
   timestamp?: Date;
   provider?: "openai" | "deepseek" | "openrouter";
+  model?: string;
 }
 
 export type ConversationType = {

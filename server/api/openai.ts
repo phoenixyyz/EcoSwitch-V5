@@ -115,6 +115,22 @@ export async function createChatCompletion(
   }
 }
 
+export async function verifyApiKey(apiKey: string): Promise<boolean> {
+  try {
+    if (!apiKey || !apiKey.startsWith('sk-') || apiKey.length < 51) {
+      return false;
+    }
+    
+    // Test the API key with a minimal request
+    const openai = new OpenAI({ apiKey });
+    const response = await openai.models.list();
+    return response.data.length > 0;
+  } catch (error) {
+    console.error('OpenAI API key verification error:', error);
+    return false;
+  }
+}
+
 export function validateApiKey(apiKey: string): boolean {
   // Basic validation - OpenAI API keys start with 'sk-' and are 51 characters long
   return apiKey.startsWith('sk-') && apiKey.length >= 51;

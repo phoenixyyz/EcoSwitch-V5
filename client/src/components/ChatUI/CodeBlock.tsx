@@ -80,7 +80,7 @@ export default function CodeBlock({ code, language, isDarkMode }: CodeBlockProps
   };
   
   return (
-    <div className="relative group mt-4 mb-4 rounded-md overflow-hidden border border-gray-200 dark:border-gray-700 shadow-sm">
+    <div className="relative group mt-4 mb-4 rounded-md overflow-hidden border border-gray-200 dark:border-gray-700 shadow-sm w-full max-w-full">
       {/* Header with language label and copy button */}
       <div className={`flex items-center justify-between px-3 py-1.5 ${isDarkMode ? 'bg-gray-800 text-gray-300 border-b border-gray-700' : 'bg-gray-100 text-gray-700 border-b border-gray-200'}`}>
         <div className="flex items-center space-x-2">
@@ -114,9 +114,14 @@ export default function CodeBlock({ code, language, isDarkMode }: CodeBlockProps
           customStyle={{
             margin: 0,
             padding: '1rem',
-            fontSize: '0.9rem',
+            fontSize: '0.85rem',
             lineHeight: 1.5,
             backgroundColor: isDarkMode ? '#1e1e2e' : '#f8f9fa',
+            overflowX: 'auto',
+            maxWidth: '100%',
+            wordBreak: 'break-word',
+            whiteSpace: 'pre-wrap',
+            WebkitOverflowScrolling: 'touch', // Better scrolling on iOS
           }}
           codeTagProps={{
             style: {
@@ -124,7 +129,7 @@ export default function CodeBlock({ code, language, isDarkMode }: CodeBlockProps
             }
           }}
           showLineNumbers={code.split('\n').length > 3}
-          wrapLongLines={false}
+          wrapLongLines={true} // Enable line wrapping for mobile
         >
           {code}
         </SyntaxHighlighter>
